@@ -24,6 +24,9 @@ digraph dependencies {
       "uiGmap_async"[label="uiGmap_async", color=5]
       "uiGmapgoogle-maps.directives.api.utils" -> "uiGmap_async"
     
+      "uiGmapAreTilesLoaded"[label="uiGmapAreTilesLoaded", color=5]
+      "uiGmapgoogle-maps.directives.api.utils" -> "uiGmapAreTilesLoaded"
+    
       "uiGmapCtrlHandle"[label="uiGmapCtrlHandle", color=5]
       "uiGmapgoogle-maps.directives.api.utils" -> "uiGmapCtrlHandle"
     
@@ -108,6 +111,8 @@ digraph dependencies {
       
         "uiGmapGmapUtil"[label="uiGmapGmapUtil"]
         "uiGmapGmapUtil" -> "uiGmap_async"
+      
+    
       
     
       
