@@ -5,7 +5,7 @@ angular.module('uiGmapgoogle-maps.directives.api')
     uiGmapCtrlHandle, uiGmapIsReady, uiGmapuuid,
     uiGmapExtendGWin, uiGmapExtendMarkerClusterer,
     uiGmapGoogleMapsUtilV3,uiGmapGoogleMapApi,
-    uiGmapEventsHelper, uiGmapGoogleMapObjectManager) ->
+    uiGmapEventsHelper, uiGmapGoogleMapObjectManager, uiGmapAreTilesLoaded) ->
 
       DEFAULTS = undefined
 
@@ -74,6 +74,12 @@ angular.module('uiGmapgoogle-maps.directives.api')
                 instance: spawned.instance
                 map: _gMap
 
+            spawnedTiles = uiGmapAreTilesLoaded.spawn()
+            resolveSpawnedTiles = =>
+              spawnedTiles.deferred.resolve
+                instance: spawnedTiles.instance
+                map: _gMap
+
             # Center property must be specified and provide lat &
             # lng properties
             if not @validateCoords(scope.center)
@@ -111,6 +117,10 @@ angular.module('uiGmapgoogle-maps.directives.api')
             _gMap['uiGmap_id'] = uiGmapuuid.generate()
 
             dragging = false
+
+            listeners.push google.maps.event.addListenerOnce _gMap, 'tilesloaded', ->
+              scope.deferred.resolve _gMap
+              resolveSpawnedTiles()
 
             listeners.push google.maps.event.addListenerOnce _gMap, 'idle', ->
               scope.deferred.resolve _gMap

@@ -340,6 +340,8 @@ digraph dependencies {
       
         "uiGmap_async"[label="uiGmap_async", color=5]
       
+        "uiGmapAreTilesLoaded"[label="uiGmapAreTilesLoaded", color=5]
+      
         "uiGmapCtrlHandle"[label="uiGmapCtrlHandle", color=5]
       
         "uiGmapEventsHelper"[label="uiGmapEventsHelper", color=5]
@@ -395,6 +397,8 @@ digraph dependencies {
         "uiGmapgoogle-maps.directives.api.utils" -> "uiGmap_sync"
       
         "uiGmapgoogle-maps.directives.api.utils" -> "uiGmap_async"
+      
+        "uiGmapgoogle-maps.directives.api.utils" -> "uiGmapAreTilesLoaded"
       
         "uiGmapgoogle-maps.directives.api.utils" -> "uiGmapCtrlHandle"
       
@@ -463,6 +467,8 @@ digraph dependencies {
         
           "uiGmapGmapUtil"[label="uiGmapGmapUtil"]
           "uiGmapGmapUtil" -> "uiGmap_async"
+        
+      
         
       
         
@@ -1599,6 +1605,9 @@ digraph dependencies {
         
           "uiGmapGoogleMapObjectManager"[label="uiGmapGoogleMapObjectManager"]
           "uiGmapGoogleMapObjectManager" -> "uiGmapMap"
+        
+          "uiGmapAreTilesLoaded"[label="uiGmapAreTilesLoaded"]
+          "uiGmapAreTilesLoaded" -> "uiGmapMap"
         
       
         
