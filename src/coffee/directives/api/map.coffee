@@ -3,11 +3,11 @@ angular.module('uiGmapgoogle-maps.directives.api')
   '$timeout', '$q','uiGmapLogger', 'uiGmapGmapUtil', 'uiGmapBaseObject',
   'uiGmapCtrlHandle', 'uiGmapIsReady', 'uiGmapuuid',
   'uiGmapExtendGWin', 'uiGmapExtendMarkerClusterer',
-  'uiGmapGoogleMapsUtilV3','uiGmapGoogleMapApi','uiGmapEventsHelper',
+  'uiGmapGoogleMapsUtilV3','uiGmapGoogleMapApi','uiGmapEventsHelper', 'uiGmapAreTilesLoaded',
   ($timeout,$q, $log, GmapUtil, BaseObject,
     CtrlHandle, IsReady, uuid,
     ExtendGWin, ExtendMarkerClusterer,
-    GoogleMapsUtilV3,GoogleMapApi, EventsHelper) ->
+    GoogleMapsUtilV3,GoogleMapApi, EventsHelper, AreTilesLoaded) ->
       'use strict'
       DEFAULTS = undefined
 
@@ -71,6 +71,12 @@ angular.module('uiGmapgoogle-maps.directives.api')
                 instance: spawned.instance
                 map: _gMap
 
+            spawnedTiles = AreTilesLoaded.spawn()
+            resolveSpawnedTiles = =>
+              spawnedTiles.deferred.resolve
+                instance: spawnedTiles.instance
+                map: _gMap
+
             # Center property must be specified and provide lat &
             # lng properties
             if not @validateCoords(scope.center)
@@ -105,6 +111,10 @@ angular.module('uiGmapgoogle-maps.directives.api')
             _gMap['uiGmap_id'] = uuid.generate()
 
             dragging = false
+
+            listeners.push google.maps.event.addListenerOnce _gMap, 'tilesloaded', ->
+              scope.deferred.resolve _gMap
+              resolveSpawnedTiles()
 
             listeners.push google.maps.event.addListenerOnce _gMap, 'idle', ->
               scope.deferred.resolve _gMap

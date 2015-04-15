@@ -1,4 +1,4 @@
-/*! angular-google-maps 2.1.0-X.8 2015-04-07
+/*! angular-google-maps 2.1.0-X.8 2015-04-15
  *  AngularJS directives for Google Maps
  *  git: https://github.com/angular-ui/angular-google-maps.git
  */
@@ -669,6 +669,57 @@ Nicholas McCready - https://twitter.com/nmccready
             ret = false;
           }
           return ret;
+        }
+      };
+    }
+  ]);
+
+}).call(this);
+;(function() {
+  angular.module('uiGmapgoogle-maps.directives.api.utils').service('uiGmapAreTilesLoaded', [
+    '$q', '$timeout', function($q, $timeout) {
+      var ctr, promises, proms;
+      ctr = 0;
+      proms = [];
+      promises = function() {
+        return $q.all(proms);
+      };
+      return {
+        spawn: function() {
+          var d;
+          d = $q.defer();
+          proms.push(d.promise);
+          ctr += 1;
+          return {
+            instance: ctr,
+            deferred: d
+          };
+        },
+        promises: promises,
+        instances: function() {
+          return ctr;
+        },
+        promise: function(expect) {
+          var d, ohCrap;
+          if (expect == null) {
+            expect = 1;
+          }
+          d = $q.defer();
+          ohCrap = function() {
+            return $timeout(function() {
+              if (ctr !== expect) {
+                return ohCrap();
+              } else {
+                return d.resolve(promises());
+              }
+            });
+          };
+          ohCrap();
+          return d.promise;
+        },
+        reset: function() {
+          ctr = 0;
+          return proms.length = 0;
         }
       };
     }
@@ -6060,7 +6111,7 @@ Original idea from: http://stackoverflow.com/questions/22758950/google-map-drawi
     hasProp = {}.hasOwnProperty;
 
   angular.module('uiGmapgoogle-maps.directives.api').factory('uiGmapMap', [
-    '$timeout', '$q', 'uiGmapLogger', 'uiGmapGmapUtil', 'uiGmapBaseObject', 'uiGmapCtrlHandle', 'uiGmapIsReady', 'uiGmapuuid', 'uiGmapExtendGWin', 'uiGmapExtendMarkerClusterer', 'uiGmapGoogleMapsUtilV3', 'uiGmapGoogleMapApi', 'uiGmapEventsHelper', function($timeout, $q, $log, GmapUtil, BaseObject, CtrlHandle, IsReady, uuid, ExtendGWin, ExtendMarkerClusterer, GoogleMapsUtilV3, GoogleMapApi, EventsHelper) {
+    '$timeout', '$q', 'uiGmapLogger', 'uiGmapGmapUtil', 'uiGmapBaseObject', 'uiGmapCtrlHandle', 'uiGmapIsReady', 'uiGmapuuid', 'uiGmapExtendGWin', 'uiGmapExtendMarkerClusterer', 'uiGmapGoogleMapsUtilV3', 'uiGmapGoogleMapApi', 'uiGmapEventsHelper', 'uiGmapAreTilesLoaded', function($timeout, $q, $log, GmapUtil, BaseObject, CtrlHandle, IsReady, uuid, ExtendGWin, ExtendMarkerClusterer, GoogleMapsUtilV3, GoogleMapApi, EventsHelper, AreTilesLoaded) {
       'use strict';
       var DEFAULTS, Map, initializeItems;
       DEFAULTS = void 0;
@@ -6118,8 +6169,9 @@ Original idea from: http://stackoverflow.com/questions/22758950/google-map-drawi
         };
 
         Map.prototype.link = function(scope, element, attrs) {
-          var listeners, unbindCenterWatch;
+          var count, listeners, unbindCenterWatch;
           listeners = [];
+          count = 0;
           scope.$on('$destroy', function() {
             return EventsHelper.removeEvents(listeners);
           });
@@ -6138,7 +6190,7 @@ Original idea from: http://stackoverflow.com/questions/22758950/google-map-drawi
           }
           return GoogleMapApi.then((function(_this) {
             return function(maps) {
-              var _gMap, customListeners, disabledEvents, dragging, el, eventName, getEventHandler, mapOptions, maybeHookToEvent, opts, ref, resolveSpawned, settingFromDirective, spawned, type, updateCenter, zoomPromise;
+              var _gMap, customListeners, disabledEvents, dragging, el, eventName, getEventHandler, mapOptions, maybeHookToEvent, opts, ref, resolveSpawned, resolveSpawnedTiles, settingFromDirective, spawned, spawnedTiles, type, updateCenter, zoomPromise;
               DEFAULTS = {
                 mapTypeId: maps.MapTypeId.ROADMAP
               };
@@ -6146,6 +6198,13 @@ Original idea from: http://stackoverflow.com/questions/22758950/google-map-drawi
               resolveSpawned = function() {
                 return spawned.deferred.resolve({
                   instance: spawned.instance,
+                  map: _gMap
+                });
+              };
+              spawnedTiles = AreTilesLoaded.spawn();
+              resolveSpawnedTiles = function() {
+                return spawnedTiles.deferred.resolve({
+                  instance: spawnedTiles.instance,
                   map: _gMap
                 });
               };
@@ -6184,6 +6243,10 @@ Original idea from: http://stackoverflow.com/questions/22758950/google-map-drawi
               _gMap = new google.maps.Map(el.find('div')[1], mapOptions);
               _gMap['uiGmap_id'] = uuid.generate();
               dragging = false;
+              listeners.push(google.maps.event.addListenerOnce(_gMap, 'tilesloaded', function() {
+                scope.deferred.resolve(_gMap);
+                return resolveSpawnedTiles();
+              }));
               listeners.push(google.maps.event.addListenerOnce(_gMap, 'idle', function() {
                 scope.deferred.resolve(_gMap);
                 return resolveSpawned();
