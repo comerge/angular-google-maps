@@ -48,7 +48,7 @@ describe "uiGmapMap", ->
       @digest ->
       events = google.maps.event.normalizedEvents()
       eventsBeyondDefaults =
-        _.without events, 'idle'
+        _.without events, 'idle', 'tilesloaded'
       expect(_.isEmpty eventsBeyondDefaults).toBeTruthy()
 
     it '(dragstart) blocks only itself', ->
@@ -59,7 +59,7 @@ describe "uiGmapMap", ->
       eventsBeyondDefaults =
         _.without events,
           'idle', 'dragend', 'drag',
-          'zoom_changed', 'center_changed',
+          'zoom_changed', 'center_changed', 'tilesloaded'
       expect(_.isEmpty eventsBeyondDefaults).toBeTruthy()
 
     it '(dragstart) blocks only itself', ->
