@@ -1,3 +1,4 @@
+###global _:true,angular:true###
 angular.module("uiGmapgoogle-maps.directives.api")
 .factory "uiGmapMarkers", [
   "uiGmapIMarker", "uiGmapPlural", "uiGmapMarkersParentModel", "uiGmap_sync", "uiGmapLogger",
@@ -7,10 +8,13 @@ angular.module("uiGmapgoogle-maps.directives.api")
         super()
         @template = '<span class="angular-google-map-markers" ng-transclude></span>'
         Plural.extend @,
-          doCluster: '=docluster'
-          clusterOptions: '=clusteroptions'
-          clusterEvents: '=clusterevents'
+          doCluster: '=?docluster' #deprecated use type instead; 2.2 we will remove
+          clusterOptions: '=clusteroptions'#deprecated use typeOptions instead; 2.2 we will remove
+          clusterEvents: '=clusterevents'#deprecated use typeEvents instead; 2.2 we will remove
           modelsByRef: '=modelsbyref'
+          type: '=?type' # cluster, spider, default undefined - normal
+          typeOptions: '=?typeoptions'
+          typeEvents: '=?typeevents'
 
         $log.info @
 
@@ -21,6 +25,7 @@ angular.module("uiGmapgoogle-maps.directives.api")
 
       link: (scope, element, attrs, ctrl) ->
         parentModel = undefined
+
         ready = ->
           scope.deferred.resolve()
 

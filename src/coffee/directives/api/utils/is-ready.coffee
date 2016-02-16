@@ -1,36 +1,49 @@
 angular.module('uiGmapgoogle-maps.directives.api.utils')
 .service 'uiGmapIsReady', ['$q', '$timeout', ($q, $timeout) ->
-  ctr = 0
-  proms = []
+  _ctr = 0
+  _proms = []
 
-  promises = ->
-    $q.all proms
+  _promises = ->
+    $q.all _proms
+
+
+  _checkIfReady = (deferred, expectedInstances, retriesLeft) ->
+    $timeout ->
+      if retriesLeft <= 0
+        deferred.reject('Your maps are not found we have checked the maximum amount of times. :)')
+        return
+      if _ctr != expectedInstances
+        _checkIfReady(deferred, expectedInstances, retriesLeft-1)
+      else
+        deferred.resolve(_promises())
+      return
+    , 100
 
   spawn: ->
     d = $q.defer()
-    proms.push d.promise
-    ctr += 1
+    _proms.push d.promise
+    _ctr += 1
 
-    instance: ctr
+    instance: _ctr
     deferred: d
 
-  promises: promises
+  promises: _promises
 
   instances: ->
-    ctr
+    _ctr
 
-  promise: (expect = 1) ->
+  promise: (expectedInstances = 1, numRetries = 50) ->
     d = $q.defer()
-    ohCrap = ->
-      $timeout ->
-        if ctr != expect
-          ohCrap()
-        else
-          d.resolve(promises())
-    ohCrap()
+    _checkIfReady(d, expectedInstances, numRetries)
     d.promise
 
   reset: ->
-    ctr = 0
-    proms.length = 0
+    _ctr = 0
+    _proms.length = 0
+    return
+
+  decrement: ->
+    _ctr -= 1 if _ctr > 0
+    _proms.length -= 1 if _proms.length
+    return
 ]

@@ -1,9 +1,11 @@
+###globals angular,_,inject###
 #global jasmine protects
 beforeEach ->
   @googleTemp = window.google
 
   angular.module('uiGmapgoogle-maps')
   .config ($provide) ->
+    $provide.value('$log', console)
     $provide.decorator '$timeout', ($delegate, $browser) ->
       $delegate.hasPendingTasks = ->
         $browser.deferredFns.length > 0
@@ -32,16 +34,16 @@ beforeEach ->
       center:
         longitude: 47
         latitude: -27
-        
+
     @timeout = $timeout
     @compile = $compile
 
-  @digest = (fn) =>
-    @compile(@html)(@scope) if @html and @scope
+  @digest = (fn, doCompile = true) =>
+    @compile(@html)(@scope) if @html and @scope and doCompile
 
     fn() if fn? and _.isFunction fn
     while @timeout.hasPendingTasks()
-        @timeout.flush()
+      @timeout.flush()
     @rootScope.$digest()
 
 afterEach ->

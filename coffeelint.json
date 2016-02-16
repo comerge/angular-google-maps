@@ -18,7 +18,7 @@
     },
     "max_line_length": {
         "name": "max_line_length",
-        "value": 90,
+        "value": 256,
         "level": "warn",
         "limitComments": true
     },
@@ -42,7 +42,7 @@
     },
     "colon_assignment_spacing": {
         "name": "colon_assignment_spacing",
-        "level": "warn",
+        "level": "ignore",
         "spacing": {
             "left": 0,
             "right": 1
@@ -59,7 +59,7 @@
     },
     "no_throwing_strings": {
         "name": "no_throwing_strings",
-        "level": "error"
+        "level": "ignore"
     },
     "no_backticks": {
         "name": "no_backticks",
@@ -71,7 +71,7 @@
     },
     "no_empty_param_list": {
         "name": "no_empty_param_list",
-        "level": "warn"
+        "level": "ignore"
     },
     "no_stand_alone_at": {
         "name": "no_stand_alone_at",

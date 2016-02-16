@@ -1,12 +1,14 @@
+###global _:true,angular:true,###
 angular.module("uiGmapgoogle-maps.directives.api.models.parent")
 .factory "uiGmapMarkersParentModel", [
   "uiGmapIMarkerParentModel", "uiGmapModelsWatcher",
   "uiGmapPropMap", "uiGmapMarkerChildModel", "uiGmap_async",
   "uiGmapClustererMarkerManager", "uiGmapMarkerManager", "$timeout", "uiGmapIMarker",
-  "uiGmapPromise", "uiGmapGmapUtil", "uiGmapLogger",
+  "uiGmapPromise", "uiGmapGmapUtil", "uiGmapLogger", "uiGmapSpiderfierMarkerManager",
     (IMarkerParentModel, ModelsWatcher,
       PropMap, MarkerChildModel, _async,
-      ClustererMarkerManager, MarkerManager, $timeout, IMarker, uiGmapPromise, GmapUtil, $log) ->
+      ClustererMarkerManager, MarkerManager, $timeout, IMarker, uiGmapPromise, GmapUtil, $log,
+      SpiderfierMarkerManager) ->
         _setPlurals  = (val, objToSet) ->
           objToSet.plurals = new PropMap() #for api consistency
           objToSet.scope.plurals = objToSet.plurals #for transclusion
@@ -18,7 +20,6 @@ angular.module("uiGmapgoogle-maps.directives.api.models.parent")
           constructor: (scope, element, attrs, map) ->
             super(scope, element, attrs, map)
             @interface = IMarker
-            self = @
 
             _setPlurals(new PropMap(), @)
             @scope.pluralsUpdate =
@@ -41,8 +42,11 @@ angular.module("uiGmapgoogle-maps.directives.api.models.parent")
             , !@isTrue(attrs.modelsbyref)
 
             @watch 'doCluster', @scope
+            @watch 'type', @scope
             @watch 'clusterOptions', @scope
             @watch 'clusterEvents', @scope
+            @watch 'typeOptions', @scope
+            @watch 'typeEvents', @scope
             @watch 'fit', @scope
             @watch 'idKey', @scope
 
@@ -53,12 +57,12 @@ angular.module("uiGmapgoogle-maps.directives.api.models.parent")
           onWatch: (propNameToWatch, scope, newValue, oldValue) =>
             if propNameToWatch == "idKey" and newValue != oldValue
               @idKey = newValue
-            if @doRebuildAll or propNameToWatch == 'doCluster'
+            if @doRebuildAll or (propNameToWatch == 'doCluster' or propNameToWatch == 'type')
               @rebuildAll(scope)
             else
               @pieceMeal(scope)
 
-          validateScope: (scope)=>
+          validateScope: (scope) =>
             modelsNotDefined = angular.isUndefined(scope.models) or scope.models == undefined
             if(modelsNotDefined)
               @$log.error(@constructor.name + ": no valid models attribute found")
@@ -77,32 +81,45 @@ angular.module("uiGmapgoogle-maps.directives.api.models.parent")
             else
               @pieceMeal @scope, false
 
+          bindToTypeEvents: (typeEvents, events = ['click', 'mouseout', 'mouseover']) =>
+            ###
+              You should only be binding to events that produce groups/clusters of somthing.
+              Otherwise use the orginal event handle.
+              For Example: Click on a cluster pushes a cluster/group obj through which has getMarkers
+              However Spiderfy's click is for a single marker so this is not ideal for that.
+            ###
+            self = @
+            if not @origTypeEvents
+              @origTypeEvents = {}
+              _.each events, (eventName) =>
+                @origTypeEvents[eventName] = typeEvents?[eventName]
+            else
+              #rollback to not have stack overflow to call self over and over
+              angular.extend typeEvents, @origTypeEvents
+            internalHandles = {}
+            _.each events, (eventName) ->
+              internalHandles[eventName] = (group) ->
+                self.maybeExecMappedEvent group, eventName
+
+            angular.extend typeEvents, internalHandles
+
           createAllNew: (scope) =>
             if @gManager?
+              if @gManager instanceof SpiderfierMarkerManager
+                isSpiderfied = @gManager.isSpiderfied()
               @gManager.clear()
               delete @gManager
+            #support backwards comapat clusterEvents and clusterOptions
+            typeEvents = scope.typeEvents or scope.clusterEvents
+            typeOptions = scope.typeOptions or scope.clusterOptions
 
-            if scope.doCluster
-              if scope.clusterEvents
-                self = @
-                if not @origClusterEvents
-                  @origClusterEvents =
-                    click: scope.clusterEvents?.click
-                    mouseout: scope.clusterEvents?.mouseout
-                    mouseover: scope.clusterEvents?.mouseover
-                else
-                  #rollback to not have stack overflow to call self over and over
-                  angular.extend scope.clusterEvents, @origClusterEvents
-
-                angular.extend scope.clusterEvents,
-                  click:(cluster) ->
-                    self.maybeExecMappedEvent cluster, 'click'
-                  mouseout:(cluster) ->
-                    self.maybeExecMappedEvent cluster, 'mouseout'
-                  mouseover:(cluster) ->
-                    self.maybeExecMappedEvent cluster, 'mouseover'
-
-              @gManager = new ClustererMarkerManager @map, undefined, scope.clusterOptions, scope.clusterEvents
+            if scope.doCluster or scope.type == 'cluster'
+              @bindToTypeEvents(typeEvents) if typeEvents?
+              @gManager = new ClustererMarkerManager @map, undefined, typeOptions, typeEvents
+            else if scope.type == 'spider'
+              @bindToTypeEvents(typeEvents, ['spiderfy', 'unspiderfy']) if typeEvents?
+              @gManager = new SpiderfierMarkerManager @map, undefined, typeOptions, typeEvents, @scope
+              @gManager.spiderfy() if isSpiderfied
             else
               @gManager = new MarkerManager @map
 
@@ -112,7 +129,7 @@ angular.module("uiGmapgoogle-maps.directives.api.models.parent")
             maybeCanceled = null
 
             _async.promiseLock @, uiGmapPromise.promiseTypes.create, 'createAllNew'
-            , ((canceledMsg) -> maybeCanceled= canceledMsg)
+            , ((canceledMsg) -> maybeCanceled = canceledMsg)
             , =>
               _async.each scope.models, (model) =>
                 @newChildMarker(model, scope)
@@ -174,7 +191,9 @@ angular.module("uiGmapgoogle-maps.directives.api.models.parent")
               @inProgress = false
               @rebuildAll(scope)
 
-          newChildMarker: (model, scope)=>
+          newChildMarker: (model, scope) =>
+            unless model
+              throw 'model undefined'
             unless model[@idKey]?
               @$log.error("Marker model has no id to assign a child to. This is required for performance. Please assign id, or redirect id to a different key.")
               return
@@ -184,35 +203,59 @@ angular.module("uiGmapgoogle-maps.directives.api.models.parent")
             keys = {}
             IMarker.scopeKeys.forEach (k) ->
               keys[k] = scope[k]
-            child = new MarkerChildModel(childScope, model, keys, @map, @DEFAULTS,
-              @doClick, @gManager, doDrawSelf = false) #this is managed so child is not drawing itself
+            child = new MarkerChildModel {
+              scope:childScope
+              model, keys,
+              gMap:@map
+              defaults: @DEFAULTS
+              doClick: @doClick
+              gManager: @gManager
+              doDrawSelf: false
+              isScopeModel: true
+            }
             @scope.plurals.put(model[@idKey], child) #major change this makes model.id a requirement
             child
 
           onDestroy: (scope) =>
             super(scope)
             _async.promiseLock @, uiGmapPromise.promiseTypes.delete, undefined, undefined, =>
-              _async.each @scope.plurals.values(), (model) =>
+              _async.each @scope.plurals.values(), (model) ->
                 model.destroy(false) if model?
               , _async.chunkSizeFrom(@scope.cleanchunk, false)
               .then =>
-                @gManager.clear() if @gManager?
+                @gManager.destroy() if @gManager?
                 # _setPlurals(new PropMap(), @)
                 @plurals.removeAll()
                 if @plurals != @scope.plurals
                   console.error 'plurals out of sync for MarkersParentModel'
                 @scope.pluralsUpdate.updateCtr += 1
 
-          maybeExecMappedEvent:(cluster, fnName) ->
-            if _.isFunction @scope.clusterEvents?[fnName]
-              pair = @mapClusterToPlurals cluster
-              @origClusterEvents[fnName](pair.cluster,pair.mapped) if @origClusterEvents[fnName]
+          maybeExecMappedEvent:(group, fnName) =>
+            #this should not be happening, but events are not getting unhooked (google bug maybe)
+            return if @scope.$$destroyed
+            typeEvents = @scope.typeEvents or @scope.clusterEvents
+            if _.isFunction typeEvents?[fnName]
+              pair = @mapTypeToPlurals group
+              @origTypeEvents[fnName](pair.group,pair.mapped) if @origTypeEvents[fnName]
 
-          mapClusterToPlurals:(cluster) ->
-            mapped = cluster.getMarkers().map (g) =>
-              @scope.plurals.get(g.key).model
-            cluster: cluster
+          mapTypeToPlurals:(group) ->
+            if _.isArray group
+              arrayToMap = group
+            else if _.isFunction group.getMarkers
+              arrayToMap = group.getMarkers()
+
+            unless arrayToMap?
+              $log.error "Unable to map event as we cannot find the array group to map"
+              return
+            if @scope.plurals.values()?.length
+              mapped = arrayToMap.map (g) =>
+                @scope.plurals.get(g.key).model
+            else
+              mapped = []
+
+            cluster: group
             mapped: mapped
+            group: group
 
           getItem: (scope, modelsPropToIterate, index) ->
             if modelsPropToIterate == 'models'

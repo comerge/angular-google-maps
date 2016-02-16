@@ -1,7 +1,8 @@
+###global angular###
 angular.module('uiGmapgoogle-maps.directives.api')
 .factory 'uiGmapPolygon', [
-  'uiGmapIPolygon', '$timeout', 'uiGmaparray-sync', 'uiGmapPolygonChildModel'
-  (IPolygon, $timeout, arraySync, PolygonChild) ->
+  'uiGmapIPolygon', '$timeout', 'uiGmapPolygonChildModel'
+  (IPolygon, $timeout, PolygonChild) ->
     class Polygon extends IPolygon
       link: (scope, element, attrs, mapCtrl) =>
         children = []
@@ -11,6 +12,6 @@ angular.module('uiGmapgoogle-maps.directives.api')
           scope.control.polygons = children
           scope.control.promise = promise
 
-        promise.then (map) =>
-          children.push new PolygonChild scope, attrs, map, @DEFAULTS
+        promise.then (gMap) =>
+          children.push new PolygonChild {scope, attrs, gMap, defaults: @DEFAULTS}
 ]
